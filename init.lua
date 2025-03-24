@@ -46,17 +46,17 @@ hs.hotkey.bind({"cmd"}, "G", function()
                 client = nil
             end
 
-            -- local response, recv_err = client:receive()
+            local response, recv_err = client:receive()
             
-            -- if response then
-            --     hs.console.log("Response" .. response)
-            --     hs.pasteboard.setContents(response)
-            --     hs.alert.show("Finalizing Completion...")
-            --     hs.eventtap.keyStroke({"cmd"}, "v")
-            --     hs.alert.show("Pasting Completion!")
-            -- else 
-            --     hs.alert.show("Failed to recieve response" .. (recv_err or "Unknown error"))
-            -- end
+            if response then
+                hs.console.log("Response" .. response)
+                hs.pasteboard.setContents(response)
+                hs.alert.show("Finalizing Completion...")
+                hs.eventtap.keyStroke({"cmd"}, "v")
+                hs.alert.show("Pasting Completion!")
+            else 
+                hs.alert.show("Failed to recieve response" .. (recv_err or "Unknown error"))
+            end
 
         else 
             hs.alert.show("No active connection to server")

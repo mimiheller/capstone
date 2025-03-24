@@ -51,7 +51,7 @@ def start_ssh_connection():
     parser = argparse.ArgumentParser(description="SSH connection")
     parser.add_argument("username", help="SSH username")
     args = parser.parse_args()
-    hostname = 'localhost'
+    hostname = '172.24.58.116'
     username = args.username
     password = getpass.getpass(f"Enter password for {username}@{hostname}: " )
     
@@ -82,11 +82,9 @@ def wait_fpga():
     while True: 
         if flag: 
             fpga_ready_event.set() 
-
         time.sleep(1)
     
 def listen_on_connection():
-
 
     print("Starting TCP server...")
     host = 'localhost'
@@ -107,11 +105,11 @@ def listen_on_connection():
                 
                 if not data: 
                     break # connection closed 
-
-                print(f"Recieved: {data}")
+                
                 fpga_ready_event.wait()
+                print(f"Recieved: {data}")
                 result = trigger_bitnet(ssh_client, data)
-                # send result back to lua 
+                # send result back to lua   - this is not working rn 
                 print(f"Result generated: {result}")
                 conn.send(result.encode())
                 time.sleep(1)
