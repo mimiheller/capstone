@@ -11,7 +11,9 @@ def ssh_connect(hostname, username, password):
     ssh_client.connect(hostname, username=username, password=password)
     print("SSH connection successful...")
 
-def start_ssh_connection(hostname, username): 
+def start_ssh_connection(): 
+    username = "ubuntu"
+    hostname = "172.24.58.116"
     password = getpass.getpass(f"Enter password for {username}@{hostname}: " )
     ssh_connect(hostname, username, password)
 
@@ -30,13 +32,13 @@ def scp_file(file, dest):
     except Exception as e: 
         print(f"Failed to SCP file: {e}")
 
-username = "ubuntu"
-hostname = "172.24.58.116"
+f = "test.txt"
+dest = "ubuntu@172.24.58.116:/home/ubuntu/test"
 
-# scp file to FGPA
-scp_file("test.txt", f"{username}@{hostname}:/home/ubuntu/test")
-
+#print("scping file:")
+#scp_file(f, dest)
 # check if file is in FPGA 
-start_ssh_connection()
-print(run_command(ssh_client, "ls -l")) #try scping some files to the FPGA
 
+start_ssh_connection()
+flag = run_command(ssh_client, "cat /home/ubuntu/test/flag.txt")
+print(f"Flag: {flag}")
