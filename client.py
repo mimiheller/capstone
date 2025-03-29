@@ -1,14 +1,13 @@
 import paramiko
 import getpass
-import argparse
 import sys
 import time
 import threading
 import signal
 import socket
 import subprocess
+import os
 
-fpga_ready_event = threading.Event()
 conn = None
 ssh_client = None
 
@@ -38,7 +37,7 @@ def ssh_connect(hostname, username, password):
         ssh_client.connect(hostname, username=username, password=password)
         print("SSH connection successful...")
 
-        start_server_and_fgpa_threads()
+        start_server_thread()
 
         while True: 
             time.sleep(1)
@@ -59,7 +58,9 @@ def start_ssh_connection():
 def run_command(ssh, command): 
     try: 
         stdin, stdout, stderr = ssh.exec_command(command)
-        return stdout.read().decode('utf-8')
+        exit_status = stdout.channel.recv_exit_status()
+        output = stdout.read().decode('utf-8')
+        return exit_status, output
     except Exception as e: 
         print(f"Failed to run command: {e}")
         return None
@@ -91,13 +92,6 @@ def scp_file_device_FPGA(file, dest):
     except Exception as e: 
         print(f"Failed to SCP file: {e}")
 
-def wait_fpga(): 
-    flag = 1 # change as necessary 
-    while True: 
-        if flag: 
-            fpga_ready_event.set() 
-        time.sleep(1)
-    
 def listen_on_connection():    
     print("Starting TCP server...")
     host = 'localhost'
@@ -122,51 +116,62 @@ def listen_on_connection():
                 context = trigger_bitnet(data)
                 f = "prompt.txt"
 
-                # Write data to the file
+                # Write context to file to scp to FPGA
                 with open(f, "w") as file:
                     file.write(context)
 
                 # Wait for flag from FPGA
                 while True:
-                    # Check the flag (retrieve it from the remote server)
-                    flag = run_command(ssh_client, "cat /home/ubuntu/test/flag.txt")
+
+                    # Check the flag 
+                    exit_status, flag = run_command(ssh_client, "cat /home/ubuntu/test/flag.txt")
                     print(f"Flag: {flag}")
                     
-                    # Check if the flag indicates that the transfer should happen
-                    if flag.strip() == "True":  # assuming flag is a string 'True' or 'False'
-                        print("Flag is True. Proceeding with SCP transfer...")
-                        
-                        # Set the flag to False
-                        run_command(ssh_client, "echo False > /home/ubuntu/test/flag.txt")
+                    # Check FPGA is available
+                    if flag.strip() == "True":  
 
-                        # Trigger SCP transfer
-                        dest = "ubuntu@172.24.58.116:/home/ubuntu/test"
-                        scp_file_device_FPGA(f, dest)
+                        # Set Flag Atomically
+                        lock = "flock /home/ubuntu/test/flag.txt -c"
+                        set_flag = "echo False > /home/ubuntu/test/flag.txt"
+                        lock_flag = f"{lock} \"{set_flag}\""
+                       
+                        exit_status, cmd = run_command(ssh_client, lock_flag)
 
-                        # Check if file is in FPGA
-                        print("Running command: cat prompt.txt")
-                        print(run_command(ssh_client, "cat /home/ubuntu/test/prompt.txt"))
+                        # make sure there isnt race condition with another client
+                        if exit_status == 0: 
+                            print("Flag is True. Proceeding with SCP transfer...")
+                       
+                            # Trigger SCP transfer
+                            dest = "ubuntu@172.24.58.116:/home/ubuntu/test"
+                            scp_file_device_FPGA(f, dest)
 
-                        # Wait for flag to be set back to true 
-                        while True:
-                            flag = run_command(ssh_client, "cat /home/ubuntu/test/flag.txt")
-                            if flag.strip() == "True":
-                                print("Flag is True. Proceeding with SCP transfer back to client...")
-                                scp_file_FPGA_device("/home/ubuntu/test/prompt.txt", "received_text_FPGA.txt")
-                                break
-                            
-                            time.sleep(1)
-                        break
+                            # Wait for flag to be set back to true - how do i deal with race cond here 
+                            while True:
+                                exit_status, flag = run_command(ssh_client, "cat /home/ubuntu/test/flag.txt")
+                                if flag.strip() == "True":
+                                    print("Proceeding with SCP transfer back to client...")
+                                    scp_file_FPGA_device("/home/ubuntu/test/prompt.txt", "received_text_FPGA.txt")
+                                    break
+                                    
+                                time.sleep(1)
+                            break
+
+                        else:
+                            print("Could not acquire lock, retrying...")
 
                     # Continue checking every 1 second until flag is True
                     time.sleep(1)
+                
+                # Ensure file has been successfully transferred
+                while not os.path.exists("received_text_FPGA.txt"):
+                    print("Waiting for file transfer to complete...")
+                    time.sleep(1)
 
+                print("SCP transfer complete. Sending ACK...")
                 
-                # result = trigger_bitnet(ssh_client, data)
-                # # send result back to lua   - this is not working rn 
-                # print(f"Result generated: {result}")
-                # conn.send(result.encode())
-                
+                ack_message = "ACK: File transfer complete\n"
+                conn.sendall(ack_message.encode('utf-8'))
+
                 time.sleep(1)
             
             print("Client disconnected")
@@ -178,11 +183,7 @@ def listen_on_connection():
         except OSError: 
             break       # socket closed 
 
-def start_server_and_fgpa_threads(): 
-    # Thread to check for FPGA readiness
-    #fpga_thread = threading.Thread(target=wait_fpga, daemon=True)
-    #fpga_thread.start()
-
+def start_server_thread(): 
     # Thread to check for input from user 
     connection_thread = threading.Thread(target=listen_on_connection, daemon=True)
     connection_thread.start()
