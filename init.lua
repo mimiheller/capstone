@@ -48,6 +48,9 @@ hs.hotkey.bind({"cmd"}, "G", function()
         hs.eventtap.keyStroke({"cmd"}, "c")
         hs.timer.usleep(200000)
 
+        hs.eventtap.keyStroke({}, "right")
+        hs.timer.usleep(100000)
+
         -- Read clipboard content
         copiedText = hs.pasteboard.getContents()
         

@@ -59,8 +59,14 @@ def run_command(ssh, command):
     try: 
         stdin, stdout, stderr = ssh.exec_command(command)
         exit_status = stdout.channel.recv_exit_status()
+        if exit_status != 0: 
+            error = stderr.read().decode('utf-8')
+        else: 
+            error = None
+
         output = stdout.read().decode('utf-8')
-        return exit_status, output
+
+        return exit_status, output, error
     except Exception as e: 
         print(f"Failed to run command: {e}")
         return None
@@ -96,12 +102,24 @@ def listen_on_connection():
     print("Starting TCP server...")
     host = 'localhost'
     port = 5050
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((host, port))
-    server_socket.listen(1)
 
-    print(f"Server listening on {host}:{port}...")
-    
+    while True:
+        try:
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Allow reusing the port
+            server_socket.bind((host, port))
+            server_socket.listen(1)
+
+            print(f"Server listening on {host}:{port}...")
+            break  
+
+        except OSError as e:
+            if e.errno == 48:  # Address already in use
+                print(f"Port {port} already in use. Retrying in 5 seconds...")
+                time.sleep(5)
+            else:
+                raise  
+
     while True:
         try: 
             conn, addr = server_socket.accept()
@@ -124,36 +142,42 @@ def listen_on_connection():
                 while True:
 
                     # Check the flag 
-                    exit_status, flag = run_command(ssh_client, "cat /home/ubuntu/test/flag.txt")
-                    print(f"Flag: {flag}")
+                    exit_status, FPGA_available, _ = run_command(ssh_client, "cat /home/ubuntu/test/flag.txt")
                     
                     # Check FPGA is available
-                    if flag.strip() == "True":  
+                    if FPGA_available.strip() == "False":  
 
                         # Set Flag Atomically
-                        lock = "flock /home/ubuntu/test/flag.txt -c"
-                        set_flag = "echo False > /home/ubuntu/test/flag.txt"
-                        lock_flag = f"{lock} \"{set_flag}\""
+                        flag_lock = "flock /home/ubuntu/test/flag.txt -c"
+                        set_flag_true = "echo True > /home/ubuntu/test/flag.txt"
+                        lock_flag = f"{flag_lock} \"{set_flag_true}\""
                        
-                        exit_status, cmd = run_command(ssh_client, lock_flag)
+                        lock_exit_status, _ , _  = run_command(ssh_client, lock_flag)
 
                         # make sure there isnt race condition with another client
-                        if exit_status == 0: 
-                            print("Flag is True. Proceeding with SCP transfer...")
+                        if lock_exit_status == 0: 
+
+                            #sanity check 
+                            _ ,flag, _ = run_command(ssh_client, "cat /home/ubuntu/test/flag.txt")
+                            print("Proceeding with SCP transfer...")
                        
-                            # Trigger SCP transfer
                             dest = "ubuntu@172.24.58.116:/home/ubuntu/test"
                             scp_file_device_FPGA(f, dest)
 
-                            # Wait for flag to be set back to true - how do i deal with race cond here 
+                            #sanity check
+                            _ , prompt, _ = run_command(ssh_client, "cat /home/ubuntu/test/prompt.txt")
+                            #print(f"Prompt: {prompt}")
+
+                            # Wait for data ready flag 
                             while True:
-                                exit_status, flag = run_command(ssh_client, "cat /home/ubuntu/test/flag.txt")
-                                if flag.strip() == "True":
+                                _ , data_ready, _ = run_command(ssh_client, "cat /home/ubuntu/test/output_ready.txt")
+                                if data_ready.strip() == "True":
                                     print("Proceeding with SCP transfer back to client...")
-                                    scp_file_FPGA_device("/home/ubuntu/test/prompt.txt", "received_text_FPGA.txt")
+                                    scp_file_FPGA_device("/home/ubuntu/test/response.txt", "received_text_FPGA.txt")
                                     break
                                     
                                 time.sleep(1)
+                            
                             break
 
                         else:
@@ -166,9 +190,19 @@ def listen_on_connection():
                 while not os.path.exists("received_text_FPGA.txt"):
                     print("Waiting for file transfer to complete...")
                     time.sleep(1)
-
-                print("SCP transfer complete. Sending ACK...")
                 
+                # set output ready to false 
+                exit_status, _ , error = run_command(ssh_client, "echo False > /home/ubuntu/test/output_ready.txt")
+                #print(f"Exit Status: {exit_status}")
+                #print(f"Error: {error}") 
+
+                #sanity check
+                time.sleep(1)
+                _ ,dready, _ = run_command(ssh_client, "cat /home/ubuntu/test/output_ready.txt")
+                #print(f"Data Ready: {dready}")                
+
+
+                print("SCP transfer complete...")
                 ack_message = "ACK: File transfer complete\n"
                 conn.sendall(ack_message.encode('utf-8'))
 
