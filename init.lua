@@ -74,7 +74,7 @@ hs.hotkey.bind({"cmd"}, "G", function()
                     end
                     
                     -- Read response from local file
-                    local file = io.open("/Users/ameliaheller/Desktop/18500/multiclient/received_text_FPGA.txt", "r")
+                    local file = io.open(PATH_TO_RESPONSE, "r")
                     local response 
 
                     if file then 
