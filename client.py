@@ -184,8 +184,8 @@ def listen_on_connection():
                             print("Could not acquire lock, retrying...")
 
                     # Continue checking every 1 second until flag is True
-                    time.sleep(1)
-                
+                time.sleep(1)
+
                 # Ensure file has been successfully transferred
                 while not os.path.exists("received_text_FPGA.txt"):
                     print("Waiting for file transfer to complete...")
@@ -205,6 +205,7 @@ def listen_on_connection():
                 print("SCP transfer complete...")
                 ack_message = "ACK: File transfer complete\n"
                 conn.sendall(ack_message.encode('utf-8'))
+                break
 
                 time.sleep(1)
             
