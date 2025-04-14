@@ -139,18 +139,29 @@ hs.hotkey.bind({"cmd"}, "L", function()
 end)
 
 -- Hotkey to display power metrics
-hs.hotkey.bind({"cmd", "shift"}, "P", function()
-    local html = [[
-        <html>
-        <body style="background-color:#222;color:white;font-family:sans-serif;padding:20px;">
-            <h1>FPGA Output</h1>
-            <p>This is your result!</p>
-        </body>
-        </html>
-    ]]
+local popup 
+local popup_open = false 
 
-    local popup = hs.webview.new({x = 300, y = 300, w = 400, h = 200})
-        :windowTitle("Results")
-        :html(html)
-        :show()
+hs.hotkey.bind({"cmd", "shift"}, "P", function()
+    if popup_open then
+        popup:delete()
+        popup_open = false
+    else
+        local html = [[
+            <html>
+            <body style="background-color:#222;color:white;font-family:sans-serif;padding:20px;">
+                <h1>FPGA Output</h1>
+                <p>This is your result!</p>
+            </body>
+            </html>
+        ]]
+    
+        popup = hs.webview.new({x = 300, y = 300, w = 400, h = 200})
+            :windowTitle("Results")
+            :html(html)
+            :windowStyle({"titled", "closable", "resizable"})
+            :level(hs.drawing.windowLevels.floating)  -- 🪄 THIS KEEPS IT ON TOP
+            :show()
+        popup_open = true
+    end
 end)
