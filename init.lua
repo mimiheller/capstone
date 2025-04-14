@@ -5,16 +5,25 @@ local completionReady = false -- track if output is ready
 
 -- Function to establish/reconnect the TCP connection
 local function connectToServer()
-    if not client or client:getstats() == nil then  -- Check if connection is active
-        client = socket.connect("localhost", 5050)
-        if client then
-            client:settimeout(5)  -- Set non-blocking mode
-            hs.alert.show("Connected to Python server")
-        else
-            hs.alert.show("Failed to connect to Python server")
-        end
+    local conn = socket.connect("localhost", 5050)
+    if conn then
+        conn:settimeout(5)
+        hs.alert.show("Connected to Python server")
+    else
+        hs.alert.show("Failed to connect to Python server")
     end
+    return conn
 end
+--     if not client or client:getstats() == nil then  -- Check if connection is active
+--         client = socket.connect("localhost", 5050)
+--         if client then
+--             client:settimeout(5)  -- Set non-blocking mode
+--             hs.alert.show("Connected to Python server")
+--         else
+--             hs.alert.show("Failed to connect to Python server")
+--         end
+--     end
+-- end
 
 hs.hotkey.bind({"cmd"}, "G", function()
     if completionReady then
@@ -37,7 +46,9 @@ hs.hotkey.bind({"cmd"}, "G", function()
 
 
     else
-        connectToServer() 
+        client = connectToServer()
+        if not client then return end  
+
         hs.alert.show("Fetching Completion...")    
 
         -- Select All (CMD + A)
@@ -74,7 +85,7 @@ hs.hotkey.bind({"cmd"}, "G", function()
                     end
                     
                     -- Read response from local file
-                    local file = io.open(PATH_TO_RESPONSE, "r")
+                    local file = io.open("/Users/ameliaheller/Desktop/capstone_test_final/received_text_FPGA.txt", "r")
                     local response 
 
                     if file then 
@@ -97,8 +108,11 @@ hs.hotkey.bind({"cmd"}, "G", function()
 
                 else
                     hs.alert.show("Failed to send data: " .. send_err)
-                    client = nil
                 end
+                
+                client:close()
+                client = nil
+
             end
 
         else
@@ -123,3 +137,4 @@ hs.hotkey.bind({"cmd"}, "L", function()
         hs.alert.show("No text generated!")
     end
 end)
+
