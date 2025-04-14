@@ -138,3 +138,19 @@ hs.hotkey.bind({"cmd"}, "L", function()
     end
 end)
 
+-- Hotkey to display power metrics
+hs.hotkey.bind({"cmd", "shift"}, "P", function()
+    local html = [[
+        <html>
+        <body style="background-color:#222;color:white;font-family:sans-serif;padding:20px;">
+            <h1>FPGA Output</h1>
+            <p>This is your result!</p>
+        </body>
+        </html>
+    ]]
+
+    local popup = hs.webview.new({x = 300, y = 300, w = 400, h = 200})
+        :windowTitle("Results")
+        :html(html)
+        :show()
+end)
