@@ -147,42 +147,31 @@ def listen_on_connection():
                     exit_status, FPGA_available, _ = run_command(ssh_client, "cat /home/ubuntu/test/flag.txt")
                     
                     # Check FPGA is available
-                    if FPGA_available.strip() == "False":  
+                    if FPGA_available.strip() == "False":
+                        
+                        print("Proceeding with SCP transfer...")
 
-                        # Set Flag Atomically
-                        flag_lock = "flock /home/ubuntu/test/flag.txt -c"
+                        # SCP file
+                        dest = "ubuntu@172.24.58.116:/home/ubuntu/test"
+                        scp_file_device_FPGA(f, dest)  
+
+                        # Set Flag 
                         set_flag_true = "echo True > /home/ubuntu/test/flag.txt"
-                        lock_flag = f"{flag_lock} \"{set_flag_true}\""
-                       
-                        lock_exit_status, _ , _  = run_command(ssh_client, lock_flag)
+                        run_command(ssh_client, set_flag_true)
 
-                        # make sure there isnt race condition with another client
-                        if lock_exit_status == 0: 
+                        # Wait for data ready flag 
+                        while True:
+                            _ , data_ready, _ = run_command(ssh_client, "cat /home/ubuntu/test/output_ready.txt")
+                            if data_ready.strip() == "True":
+                                print("Proceeding with SCP transfer back to client...")
+                                scp_file_FPGA_device("/home/ubuntu/test/response.txt", "received_text_FPGA.txt")
+                                break 
+                            time.sleep(1)
+                        
+                        break
 
-                            #sanity check 
-                            _ ,flag, _ = run_command(ssh_client, "cat /home/ubuntu/test/flag.txt")
-                            print("Proceeding with SCP transfer...")
-                       
-                            dest = "ubuntu@172.24.58.116:/home/ubuntu/test"
-                            scp_file_device_FPGA(f, dest)
-
-                            #sanity check
-                            _ , prompt, _ = run_command(ssh_client, "cat /home/ubuntu/test/prompt.txt")
-                            #print(f"Prompt: {prompt}")
-
-                            # Wait for data ready flag 
-                            while True:
-                                _ , data_ready, _ = run_command(ssh_client, "cat /home/ubuntu/test/output_ready.txt")
-                                if data_ready.strip() == "True":
-                                    print("Proceeding with SCP transfer back to client...")
-                                    scp_file_FPGA_device("/home/ubuntu/test/response.txt", "received_text_FPGA.txt")
-                                    break 
-                                time.sleep(1)
-                            
-                            break
-
-                        else:
-                            print("Could not acquire lock, retrying...")
+                    else:
+                        print("Could not acquire lock, retrying...")
 
                     # Continue checking every 1 second until flag is True
                     time.sleep(1)
