@@ -124,8 +124,10 @@ def listen_on_connection():
         try: 
             conn, addr = server_socket.accept()
             print(f"Connection from {addr}")
+
+            client_done = False
             
-            while True: 
+            while not client_done: 
                 data = conn.recv(1024).decode('utf-8')
                 if not data: 
                     break # connection closed 
@@ -174,8 +176,7 @@ def listen_on_connection():
                                 if data_ready.strip() == "True":
                                     print("Proceeding with SCP transfer back to client...")
                                     scp_file_FPGA_device("/home/ubuntu/test/response.txt", "received_text_FPGA.txt")
-                                    break
-                                    
+                                    break 
                                 time.sleep(1)
                             
                             break
@@ -184,7 +185,7 @@ def listen_on_connection():
                             print("Could not acquire lock, retrying...")
 
                     # Continue checking every 1 second until flag is True
-                time.sleep(1)
+                    time.sleep(1)
 
                 # Ensure file has been successfully transferred
                 while not os.path.exists("received_text_FPGA.txt"):
@@ -205,10 +206,10 @@ def listen_on_connection():
                 print("SCP transfer complete...")
                 ack_message = "ACK: File transfer complete\n"
                 conn.sendall(ack_message.encode('utf-8'))
-                break
+                
+                client_done = True
+                
 
-                time.sleep(1)
-            
             print("Client disconnected")
             conn.close() 
         
