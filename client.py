@@ -165,6 +165,7 @@ def listen_on_connection():
                             if data_ready.strip() == "True":
                                 print("Proceeding with SCP transfer back to client...")
                                 scp_file_FPGA_device("/home/ubuntu/test/response.txt", "received_text_FPGA.txt")
+                                scp_file_FPGA_device("/home/ubuntu/test/power.txt", "power.txt")
                                 break 
                             time.sleep(1)
                         
@@ -177,7 +178,7 @@ def listen_on_connection():
                     time.sleep(1)
 
                 # Ensure file has been successfully transferred
-                while not os.path.exists("received_text_FPGA.txt"):
+                while not (os.path.exists("received_text_FPGA.txt") and os.path.exists("power.txt")):
                     print("Waiting for file transfer to complete...")
                     time.sleep(1)
                 
