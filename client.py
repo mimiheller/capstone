@@ -191,6 +191,8 @@ def listen_on_connection():
                 
                 # Set flags for next user
                 run_command(ssh_client, "echo False > /home/ubuntu/test/output_ready.txt")
+                _ , check_2, _ = run_command(ssh_client, "cat /home/ubuntu/test/response.txt")
+                print(f"output_ready: {check_2}")
                 run_command(ssh_client, "echo False > /home/ubuntu/test/flag.txt")
 
                 client_done = True
