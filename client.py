@@ -158,13 +158,13 @@ def listen_on_connection():
                         # Set Flag 
                         set_flag_true = "echo True > /home/ubuntu/test/flag.txt"
                         run_command(ssh_client, set_flag_true)
-                        _ , check, _ = run_command(ssh_client, "cat /home/ubuntu/test/output_ready.txt")
-                        print(f"Flag.txt: {check}")
                         # Wait for data ready flag 
                         while True:
                             _ , data_ready, _ = run_command(ssh_client, "cat /home/ubuntu/test/output_ready.txt")
                             if data_ready.strip() == "True":
                                 print("Proceeding with SCP transfer back to client...")
+                                 _ , check, _ = run_command(ssh_client, "cat /home/ubuntu/test/response.txt")
+                                print(f"response: {check}")
                                 scp_file_FPGA_device("/home/ubuntu/test/response.txt", "received_text_FPGA.txt")
                                 scp_file_FPGA_device("/home/ubuntu/test/power.txt", "power.txt")
                                 break 
