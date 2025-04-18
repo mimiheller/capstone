@@ -172,7 +172,7 @@ def listen_on_connection():
                         break
 
                     else:
-                        print("Could not acquire lock, retrying...")
+                        print("Waiting for other user...")
 
                     # Continue checking every 1 second until flag is True
                     time.sleep(1)
@@ -182,21 +182,16 @@ def listen_on_connection():
                     print("Waiting for file transfer to complete...")
                     time.sleep(1)
                 
-                # set output ready to false 
-                exit_status, _ , error = run_command(ssh_client, "echo False > /home/ubuntu/test/output_ready.txt")
-                #print(f"Exit Status: {exit_status}")
-                #print(f"Error: {error}") 
-
-                #sanity check
-                time.sleep(1)
-                _ ,dready, _ = run_command(ssh_client, "cat /home/ubuntu/test/output_ready.txt")
-                #print(f"Data Ready: {dready}")                
 
 
                 print("SCP transfer complete...")
                 ack_message = "ACK: File transfer complete\n"
                 conn.sendall(ack_message.encode('utf-8'))
                 
+                # Set flags for next user
+                run_command(ssh_client, "echo False > /home/ubuntu/test/output_ready.txt")
+                run_command(ssh_client, "echo False > /home/ubuntu/test/flag.txt")
+
                 client_done = True
                 
 
