@@ -191,8 +191,9 @@ def listen_on_connection():
                 conn.sendall(ack_message.encode('utf-8'))
                 
                 # Set flags for next user
-                run_command(ssh_client, "echo False > /home/ubuntu/test/flag.txt")
                 run_command(ssh_client, "echo False > /home/ubuntu/test/output_ready.txt")
+                run_command(ssh_client, "echo False > /home/ubuntu/test/flag.txt")
+                
                 
 
                 client_done = True
